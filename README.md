@@ -1,32 +1,46 @@
 # Morse Code Decoder — CSE-207 Project
 
-Course project for **Digital Electronics and Computer Organisation (CSE-207)**. The project designs a digital Morse code decoder and implements it as an interactive software simulation.
+Course project for **Digital Electronics and Computer Organisation (CSE-207)**: a digital Morse code decoder, designed in hardware and implemented as an interactive software simulation.
 
 **Live app:** <https://morsedecoder-vacmxkhqiuahoqxa9s7sok.streamlit.app>
 
-| Folder | Contents |
-|---|---|
-| [`morselab/`](morselab) | **MorseLab**, a web application that encodes, decodes and visualises Morse code, including decoding from an uploaded image (Python, Streamlit, Plotly) |
-| [`morse_decoder/`](morse_decoder) | Project report and hardware design data: a 74HC-series decoder with EEPROM look-up table |
+## Project structure
 
-## Run MorseLab locally
+```
+.
+├── README.md
+├── requirements.txt            Pinned dependencies (Streamlit, Plotly)
+├── .streamlit/config.toml      Colour theme and 5 MB upload limit
+├── morselab/                   MorseLab web application
+│   ├── app.py                  User interface
+│   ├── morse_logic.py          Morse table, encoder, decoder, signal timing
+│   ├── morse_image.py          Reads Morse symbols from an uploaded image
+│   ├── test_morselab.py        Automated tests
+│   └── README.md               Features and how it works
+└── morse_decoder/              Hardware design and report
+    ├── Morse_Code_Decoder_Report.docx
+    ├── morse_model.py          Circuit simulation and ROM generator
+    ├── rom_lo.hex, rom_hi.hex  EEPROM contents
+    ├── rom_table.csv           Character-to-address table
+    └── README.md
+```
 
-Run these commands from this folder (the repository root):
+## Run locally
+
+From this folder:
 
 ```bash
 python -m pip install -r requirements.txt
 python -m streamlit run morselab/app.py
 ```
 
-The application opens at <http://localhost:8501>.
+The app opens at <http://localhost:8501>. To run the tests:
 
-## Deploy on Streamlit Community Cloud
+```bash
+cd morselab
+python -m unittest test_morselab
+```
 
-1. Sign in at <https://share.streamlit.io> with the GitHub account that owns this repository.
-2. Select **Create app**, then **Deploy a public app from GitHub**.
-3. Set **Repository** to `cyraemin/morse_decoder`, **Branch** to `main` and **Main file path** to `morselab/app.py`.
-4. Under **Advanced settings**, select Python **3.13**, then click **Deploy**.
+## Deployment
 
-Dependencies are installed from `requirements.txt`, and the colour theme and 5 MB upload limit are read from `.streamlit/config.toml`. No secrets or external services are required. Pushing to `main` redeploys the live app automatically.
-
-See [`morselab/README.md`](morselab/README.md) for features, design and testing details.
+The app is deployed on Streamlit Community Cloud from branch `main`, with main file `morselab/app.py`. Every push to `main` redeploys it automatically. No secrets or external services are required.
