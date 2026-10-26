@@ -2,6 +2,8 @@
 
 MorseLab is an interactive web application that encodes, decodes and visualises International Morse Code. It is a **software simulation** of a digital Morse code decoder, developed as the course project for **Digital Electronics and Computer Organisation (CSE-207)**.
 
+**Live app:** <https://morsedecoder-vacmxkhqiuahoqxa9s7sok.streamlit.app>
+
 The application reproduces the stages of a hardware decoder in software: signal timing, symbol separation, pattern storage and look-up-table decoding. It does not involve or control any physical hardware.
 
 ---
@@ -25,6 +27,7 @@ The application reproduces the stages of a hardware decoder in software: signal 
 | Module | Description |
 |---|---|
 | **Morse decoder** | Converts Morse code to text. Letters are separated by spaces and words by `/`. Supports A–Z, 0–9 and common punctuation. Invalid codes are shown as `?` with a specific error message. |
+| **Decode from an image** | Optional section in the decoder card. Upload a PNG or JPG (max 5 MB) of printed or neatly drawn Morse code, preview it and press **Extract Morse**. The extracted sequence is placed in the decoder box for review and editing before you press Decode. Text you typed yourself is never overwritten without confirmation. |
 | **Interactive input** | Dot, Dash, Letter gap, Word gap, Undo and Clear buttons build a sequence that is decoded as you type. |
 | **Text encoder** | Converts text of any case to Morse code and keeps word boundaries. Characters with no Morse code are reported. |
 | **Signal visualiser** | Plots the HIGH/LOW waveform of the decoder input, the keypad sequence or the encoder output, with each character labelled. |
@@ -80,6 +83,20 @@ All durations are multiples of one *unit*, the length of a dot.
 4. **Map:** look up each code in the Morse table. Unknown codes produce `?` and an error message.
 5. **Output:** join the characters into words and the words into the final text.
 
+### Reading Morse from an image
+
+`morse_image.py` is a small shape detector, not general OCR. It uses only Pillow and NumPy, which are installed with Streamlit, and runs entirely offline:
+
+1. Convert the image to greyscale and separate the marks from the background with an automatic (Otsu) threshold. Both dark-on-light and light-on-dark images work.
+2. Find each connected mark and measure its width, height, fill and slope.
+3. Classify each mark as a dot (round or square), a dash (wide) or a word separator (`/` or `|`).
+4. Read the marks left to right and turn the gaps into symbol, letter or word spacing using the 1 / 3 / 7 unit rule.
+5. Check the result with the same decoder used everywhere else in the app.
+
+Blank, low-contrast, damaged or unsupported files, and images of ordinary text, produce a clear message instead of a guess.
+
+### Single mapping table
+
 Encoding and decoding use a single mapping table (`CHAR_TO_MORSE`), and the reverse table is derived from it automatically, so the two directions are always consistent. All results, including the examples, are computed at run time; none are hard-coded.
 
 ## Digital electronics concepts demonstrated
@@ -98,10 +115,11 @@ Encoding and decoding use a single mapping table (`CHAR_TO_MORSE`), and the reve
 ```
 (repository root)
 ├── requirements.txt         Pinned dependencies (Streamlit, Plotly)
-├── .streamlit/config.toml   Colour theme
+├── .streamlit/config.toml   Colour theme and upload size limit
 └── morselab/
     ├── app.py               Streamlit user interface
     ├── morse_logic.py       Morse table, encoder, decoder, waveform timing, keypad logic
+    ├── morse_image.py       Reads dots, dashes and separators from an uploaded image
     ├── test_morselab.py     Automated test suite
     └── README.md
 ```
@@ -113,13 +131,14 @@ cd morselab
 python -m unittest test_morselab -v
 ```
 
-The suite contains 32 tests covering decoding, encoding, input validation, waveform timing and keypad behaviour. It also uses Streamlit's AppTest framework to click every button, submit both forms and compare the plotted waveform against the timing rules.
+The suite contains 35 tests covering decoding, encoding, input validation, waveform timing, keypad behaviour and image extraction (drawn, printed, inverted and JPEG images, plus blank, blurred and damaged files). It also uses Streamlit's AppTest framework to click every button, submit both forms and compare the plotted waveform against the timing rules.
 
 ## Limitations
 
 - MorseLab is a software simulation, not a physical circuit. Signal timing is ideal rather than measured from a real key.
 - Input is entered as typed or clicked symbols, not by holding down a key for a measured duration.
 - Prosigns (for example SK and AR) and non-Latin Morse alphabets are not supported.
+- Image reading is designed for clear, printed or neatly drawn Morse code on a plain background. Handwriting with uneven spacing, tilted photos or cluttered images may be misread, so always review the extracted sequence before decoding.
 
 ## Future scope
 

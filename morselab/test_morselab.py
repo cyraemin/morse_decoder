@@ -129,6 +129,69 @@ class TestKeypad(unittest.TestCase):
         self.assertEqual(ml.undo(""), "")
 
 
+class TestImageExtraction(unittest.TestCase):
+    """Generates Morse images with Pillow and checks the extractor reads them."""
+
+    @staticmethod
+    def drawn(text, d=12, invert=False):
+        from PIL import Image, ImageDraw
+        morse = ml.encode(text).morse
+        width = 40 + sum({".": 2 * d, "-": 4 * d, " ": 2 * d, "/": 8 * d}[c] for c in morse)
+        fg, bg = ("white", "black") if invert else ("black", "white")
+        img = Image.new("RGB", (width, 6 * d), bg)
+        draw, x, y = ImageDraw.Draw(img), 20, 3 * d
+        for w, word in enumerate(morse.split(" / ")):
+            if w:
+                draw.line([(x + 2 * d, y + 2 * d), (x + 4 * d, y - 2 * d)], fill=fg, width=max(2, d // 3))
+                x += 7 * d
+            for i, code in enumerate(word.split(" ")):
+                x += 2 * d if i else 0
+                for j, sym in enumerate(code):
+                    x += d if j else 0
+                    length = d if sym == "." else 3 * d
+                    shape = draw.ellipse if sym == "." else draw.rectangle
+                    shape([x, y - d // 2, x + length, y + d // 2], fill=fg)
+                    x += length
+        return img
+
+    @staticmethod
+    def as_bytes(img, fmt="PNG", **options):
+        import io
+        buf = io.BytesIO()
+        img.save(buf, fmt, **options)
+        return buf.getvalue()
+
+    def decoded(self, data):
+        import morse_image as mi
+        return ml.decode(mi.extract_morse(data).morse).text
+
+    def test_drawn_images(self):
+        for text in ["SOS", "HELLO WORLD", "CSE 207"]:
+            self.assertEqual(self.decoded(self.as_bytes(self.drawn(text))), text)
+            self.assertEqual(self.decoded(self.as_bytes(self.drawn(text, invert=True))), text)
+            self.assertEqual(self.decoded(self.as_bytes(self.drawn(text, d=6), "JPEG", quality=60)), text)
+
+    def test_printed_text(self):
+        from PIL import Image, ImageDraw, ImageFont
+        morse = ml.encode("HELLO WORLD").morse
+        font = ImageFont.load_default(size=48)
+        img = Image.new("RGB", (int(font.getlength(morse)) + 60, 96), "white")
+        ImageDraw.Draw(img).text((30, 24), morse, fill="black", font=font)
+        self.assertEqual(self.decoded(self.as_bytes(img)), "HELLO WORLD")
+
+    def test_bad_inputs_give_messages(self):
+        import morse_image as mi
+        from PIL import Image, ImageFilter
+        cases = [b"", b"not an image", self.as_bytes(Image.new("RGB", (50, 50)), "GIF"),
+                 self.as_bytes(Image.new("RGB", (300, 200), "white")),
+                 self.as_bytes(self.drawn("SOS").filter(ImageFilter.GaussianBlur(12))),
+                 b"0" * (6 * 1024 * 1024)]
+        for data in cases:
+            result = mi.extract_morse(data)
+            self.assertEqual(result.morse, "")
+            self.assertTrue(result.error)
+
+
 class TestApp(unittest.TestCase):
     """Drives the real Streamlit page: clicks buttons and submits forms."""
 

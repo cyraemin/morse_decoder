@@ -2,9 +2,11 @@
 
 Course project for **Digital Electronics and Computer Organisation (CSE-207)**. The project designs a digital Morse code decoder and implements it as an interactive software simulation.
 
+**Live app:** <https://morsedecoder-vacmxkhqiuahoqxa9s7sok.streamlit.app>
+
 | Folder | Contents |
 |---|---|
-| [`morselab/`](morselab) | **MorseLab**, a web application that encodes, decodes and visualises Morse code (Python, Streamlit, Plotly) |
+| [`morselab/`](morselab) | **MorseLab**, a web application that encodes, decodes and visualises Morse code, including decoding from an uploaded image (Python, Streamlit, Plotly) |
 | [`morse_decoder/`](morse_decoder) | Project report and hardware design data: a 74HC-series decoder with EEPROM look-up table |
 
 ## Run MorseLab locally
@@ -25,6 +27,6 @@ The application opens at <http://localhost:8501>.
 3. Set **Repository** to `cyraemin/morse_decoder`, **Branch** to `main` and **Main file path** to `morselab/app.py`.
 4. Under **Advanced settings**, select Python **3.13**, then click **Deploy**.
 
-Dependencies are installed from `requirements.txt`, and the colour theme is read from `.streamlit/config.toml`. No secrets or external services are required.
+Dependencies are installed from `requirements.txt`, and the colour theme and 5 MB upload limit are read from `.streamlit/config.toml`. No secrets or external services are required. Pushing to `main` redeploys the live app automatically.
 
 See [`morselab/README.md`](morselab/README.md) for features, design and testing details.

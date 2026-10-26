@@ -5,6 +5,7 @@ Run from the repository root:  python -m streamlit run morselab/app.py
 import plotly.graph_objects as go
 import streamlit as st
 
+import morse_image as mi
 import morse_logic as ml
 
 st.set_page_config(page_title="MorseLab", page_icon=":material/graphic_eq:", layout="wide")
@@ -45,7 +46,9 @@ div.ml-hint {{ color: #6B7385; font-size: .9rem; margin: 0 0 .6rem 0; }}
 # --------------------------------------------------------------------------
 # Session state (keeps values between button clicks)
 # --------------------------------------------------------------------------
-defaults = {"dec_input": "", "enc_input": "", "keypad": "", "viz_source": "Decoder input"}
+defaults = {"dec_input": "", "enc_input": "", "keypad": "", "viz_source": "Decoder input",
+            # image upload: uploader widget key, last extraction, sequence waiting for user review
+            "img_key": 0, "img_result": None, "img_file": None, "img_review": False}
 for key, value in defaults.items():
     st.session_state.setdefault(key, value)
 
@@ -55,6 +58,36 @@ def load_example(text):
     st.session_state.dec_input = ml.encode(text).morse
     st.session_state.enc_input = text
     st.session_state.viz_source = "Decoder input"
+    st.session_state.img_review = False
+
+
+def current_upload():
+    return st.session_state.get(f"img_upload_{st.session_state.img_key}")
+
+
+def extract_image():
+    """'Extract Morse' button: read the image. Fills the decoder only if it is empty."""
+    upload = current_upload()
+    if upload is None:
+        return
+    result = mi.extract_morse(upload.getvalue())
+    st.session_state.img_result = result
+    st.session_state.img_file = upload.file_id
+    if result.morse and not st.session_state.dec_input.strip():
+        use_extracted()
+
+
+def use_extracted():
+    """Put the extracted sequence in the decoder box for the user to review, edit and decode."""
+    st.session_state.dec_input = st.session_state.img_result.morse
+    st.session_state.img_review = True
+
+
+def remove_image():
+    """Clear the uploaded image and its result. The decoder box is left unchanged."""
+    st.session_state.img_key += 1
+    st.session_state.img_result = None
+    st.session_state.img_file = None
 
 
 def keypad(action, symbol=None):
@@ -143,11 +176,51 @@ with left:
         with st.form("decode_form", border=False):
             st.text_input("Morse code", key="dec_input", label_visibility="collapsed",
                           placeholder="e.g.  .... . .-.. .-.. --- / .-- --- .-. .-.. -..")
-            st.form_submit_button("Decode", type="primary", icon=":material/play_arrow:")
-        if dec.text:
-            st.caption("Decoded text (hover over the box to show the copy icon)")
-            st.code(dec.text, language=None)
-        show_errors(dec.errors)
+            if st.form_submit_button("Decode", type="primary", icon=":material/play_arrow:"):
+                st.session_state.img_review = False
+        # Results sit in their own container so the image section below keeps a fixed
+        # position (otherwise Streamlit re-creates it, collapsed, when results change).
+        with st.container():
+            if st.session_state.img_review:
+                st.info("Morse code extracted from the image is in the box above. "
+                        "Check it, correct it if needed, then press Decode.")
+            else:
+                if dec.text:
+                    st.caption("Decoded text (hover over the box to show the copy icon)")
+                    st.code(dec.text, language=None)
+                show_errors(dec.errors)
+
+        with st.expander("Decode from an image (optional)", icon=":material/image:"):
+            st.caption("Upload a clear PNG or JPG (max 5 MB) of printed or neatly drawn Morse code: "
+                       "dots, dashes and / on a plain background. Letters and photos of other "
+                       "objects are not supported.")
+            upload = st.file_uploader("Morse code image", type=["png", "jpg", "jpeg"],
+                                      key=f"img_upload_{st.session_state.img_key}",
+                                      label_visibility="collapsed")
+            if upload is not None:
+                preview, load_error = mi.load_image(upload.getvalue())
+                if load_error:
+                    st.error(load_error)
+                else:
+                    st.image(preview, caption=upload.name)
+                b1, b2 = st.columns(2)
+                b1.button("Extract Morse", key="btn_extract", on_click=extract_image,
+                          icon=":material/document_scanner:", width="stretch", disabled=bool(load_error))
+                b2.button("Remove image", key="btn_remove_img", on_click=remove_image,
+                          icon=":material/close:", width="stretch")
+                result = st.session_state.img_result
+                if result is not None and st.session_state.img_file == upload.file_id:
+                    if result.error:
+                        st.warning(result.error + " You can still type or correct the code in the box above.")
+                    else:
+                        st.caption(f"Extracted sequence ({result.symbols} dots and dashes)")
+                        st.code(result.morse, language=None)
+                        for w in result.warnings:
+                            st.warning(w)
+                        if st.session_state.dec_input != result.morse:
+                            st.caption("The decoder box already has your own text, so it was not changed.")
+                            st.button("Replace decoder text with extracted Morse", key="btn_use_img",
+                                      on_click=use_extracted, width="stretch")
 
     # B. Interactive input
     with st.container(border=True):
@@ -290,7 +363,7 @@ The encoder uses the **same table** in reverse, and the waveform is generated fr
 # --------------------------------------------------------------------------
 # Final status LED
 # --------------------------------------------------------------------------
-if dec.errors or pad.errors:
+if (dec.errors and not st.session_state.img_review) or pad.errors:
     set_status("Error", "#E5484D")
 else:
     set_status("Ready", MINT)
